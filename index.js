@@ -19,7 +19,7 @@ const handleRequest = async (req, res) => {
   const statusCode = req.url.slice(1); // Отримуємо код зі шляху, наприклад, /200
   const filePath = cacheFilePath(statusCode);
 
-  
+  //try {
     if (req.method === 'GET') {
       // Отримання картинки
       const data = await fs.readFile(filePath);
@@ -27,21 +27,34 @@ const handleRequest = async (req, res) => {
       console.log(filePath); 
       res.end(data);
     } else if (req.method === 'PUT') {
-        // Запис картинки
-        let data = [];
-        req.on('data', chunk => data.push(chunk));
-        req.on('end', async () => {
-          data = Buffer.concat(data);
-          await fs.writeFile(filePath, data);
-          res.writeHead(201, { 'Content-Type': 'text/plain' });
-          res.end('Created');
-        });
+      // Запис картинки
+      let data = [];
+      req.on('data', chunk => data.push(chunk));
+      req.on('end', async () => {
+        data = Buffer.concat(data);
+        await fs.writeFile(filePath, data);
+        res.writeHead(201, { 'Content-Type': 'text/plain' });
+        res.end('Created');
+      });
+    } else if (req.method === 'DELETE') {
+      // Видалення картинки
+      await fs.unlink(filePath);
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('Deleted');
     } else {
       // Метод не підтримується
       res.writeHead(405, { 'Content-Type': 'text/plain' });
       res.end('Method Not Allowed');
     }
-
+/*  } catch (err) {
+    if (err.code === 'ENOENT') {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not Found');
+    } else {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('Server Error');
+    }
+  }*/
 };
 
 const server = http.createServer(handleRequest);
