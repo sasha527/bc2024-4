@@ -26,6 +26,16 @@ const handleRequest = async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'image/jpg' });
       console.log(filePath); 
       res.end(data);
+    } else if (req.method === 'PUT') {
+        // Запис картинки
+        let data = [];
+        req.on('data', chunk => data.push(chunk));
+        req.on('end', async () => {
+          data = Buffer.concat(data);
+          await fs.writeFile(filePath, data);
+          res.writeHead(201, { 'Content-Type': 'text/plain' });
+          res.end('Created');
+        });
     } else {
       // Метод не підтримується
       res.writeHead(405, { 'Content-Type': 'text/plain' });
