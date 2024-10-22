@@ -2,6 +2,7 @@ const fs = require('fs').promises;
 const http = require('http');
 const { Command } = require('commander');
 const path = require('path');
+const superagent = require("superagent");
 
 const program = new Command();
 
@@ -19,14 +20,37 @@ const handleRequest = async (req, res) => {
   const statusCode = req.url.slice(1); // Отримуємо код зі шляху, наприклад, /200
   const filePath = cacheFilePath(statusCode);
 
-  //try {
+  try {
     if (req.method === 'GET') {
-      // Отримання картинки
-      const data = await fs.readFile(filePath);
-      res.writeHead(200, { 'Content-Type': 'image/jpg' });
-      console.log(filePath); 
-      res.end(data);
-    } else if (req.method === 'PUT') {
+      try {
+          const data = await fs.readFile(filePath);
+          // Якщо картинка знайдена в кеші
+          res.writeHead(200, { 'Content-Type': 'image/jpg' });
+          res.end(data);
+      } catch (err) {
+          // Якщо картинки немає в кеші, виконуємо запит до https://http.cat
+          const catUrl = `https://http.cat/${statusCode}`;
+  
+          try {
+              // Запит до https://http.cat
+              const catResponse = await superagent.get(catUrl);
+              const image = catResponse.body;
+  
+              // Зберігаємо картинку в кеш
+              await fs.writeFile(filePath, image);
+  
+              // Відправляємо клієнту отриману картинку
+              res.writeHead(200, { 'Content-Type': 'image/jpg' });
+              res.end(image);
+          } catch (error) {
+              // Якщо запит до https://http.cat завершився помилкою
+              console.log(error);
+              res.writeHead(404, { 'Content-Type': 'text/plain' });
+              res.end('404 Not Found');
+          }
+      }
+  }
+   else if (req.method === 'PUT') {
       // Запис картинки
       let data = [];
       req.on('data', chunk => data.push(chunk));
@@ -46,7 +70,7 @@ const handleRequest = async (req, res) => {
       res.writeHead(405, { 'Content-Type': 'text/plain' });
       res.end('Method Not Allowed');
     }
-/*  } catch (err) {
+  } catch (err) {
     if (err.code === 'ENOENT') {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('Not Found');
@@ -54,7 +78,7 @@ const handleRequest = async (req, res) => {
       res.writeHead(500, { 'Content-Type': 'text/plain' });
       res.end('Server Error');
     }
-  }*/
+  }
 };
 
 const server = http.createServer(handleRequest);
