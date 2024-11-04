@@ -1,30 +1,30 @@
-const fs = require('fs').promises;            //модуль фс також і для await
+const fs = require('fs').promises;           
 const http = require('http');                  // для створення сервера
 const { Command } = require('commander');
 const path = require('path');                  //path для роботи зі шляхами до файлів
 const superagent = require("superagent");       //для створення http запитів
 
-const program = new Command();                  //екземпляр
+const program = new Command();                 
 
 program
   .requiredOption('-h, --host <address>', 'Address of the server')      
   .requiredOption('-p, --port <number>', 'Port of the server')            
   .requiredOption('-c, --cache <path>', 'Path to cache directory')
-  .parse(process.argv);                                               //парс аргументів
+  .parse(process.argv);                                               
 
-const options = program.opts();                             //зберігаємо в консту                      
+const options = program.opts();                                               
 
-const cacheFilePath = (statusCode) => path.join(options.cache, `${statusCode}.jpg`); //створює шлях до файлу кешу, використовуючи статусний код як ім'я файлу.
+const cacheFilePath = (param) => path.join(options.cache, `${param}.jpg`);
 
 const handleRequest = async (req, res) => {
-  const statusCode = req.url.slice(1); // витягнення коду статусу з url, напр 200. слайс потрібний для видалення першого символу / щоб створити шлях до кешу
-  const filePath = cacheFilePath(statusCode); // щоб створити шлях до файлу кешу для цього статусного коду ;
+  const statusCode = req.url.slice(1); 
+  const filePath = cacheFilePath(statusCode);
 
   try {
-    if (req.method === 'GET') {                             //якщо в нас метод гет
+    if (req.method === 'GET') {                             
       try {
-          const data = await fs.readFile(filePath);         //то спочатку читаємо файл і записуємо в консту дата
-          res.writeHead(200, { 'Content-Type': 'image/jpg' });  //якщо все добре, то відповідно надсилається цей файл
+          const data = await fs.readFile(filePath);        
+          res.writeHead(200, { 'Content-Type': 'image/jpg' });  
           res.end(data);
       } catch (err) {                                         //якщо в нас не знайдена картинка, то використовуємо котів
           const catUrl = `https://http.cat/${statusCode}`;    // запит до https://http.cat, зображення для конкретного статусу коду
@@ -34,7 +34,7 @@ const handleRequest = async (req, res) => {
   
               await fs.writeFile(filePath, image);                      // зберігаємо картинку в кеш за вказаним шляхом
   
-              res.writeHead(200, { 'Content-Type': 'image/jpg' });       // картинка з успішним статус кодом
+              res.writeHead(200, { 'Content-Type': 'image/jpg' });       
               res.end(image);
           } catch (error) {
               console.log(error);                                       // якщо запит до https://http.cat завершився помилкою
@@ -43,29 +43,29 @@ const handleRequest = async (req, res) => {
           }
       }
   }
-   else if (req.method === 'PUT') {                                 //якщо в нас запит PUT то зберігаємо нову картинку у кеш
+   else if (req.method === 'PUT') {                                 
       let data = [];                                                //масивчик для розбитих на чанки великих файлів
       req.on('data', chunk => data.push(chunk));                    // обробляє кожен чанк і відправляє в масив дата
       req.on('end', async () => {
-        data = Buffer.concat(data);                   // з'єднує в один цілий буфер
+        data = Buffer.concat(data);                   
         await fs.writeFile(filePath, data);             // запис нашої картинки в файл
-        res.writeHead(201, { 'Content-Type': 'text/plain' }); //статус код
-        res.end('Created');     //ну і повідомлення про створення
+        res.writeHead(201, { 'Content-Type': 'text/plain' }); 
+        res.end('Created');     
       });
-    } else if (req.method === 'DELETE') {               //якщо деліт то видаляємо картинку з кешу
+    } else if (req.method === 'DELETE') {              
       await fs.unlink(filePath);    // видалення файлу з системи
-      res.writeHead(200, { 'Content-Type': 'text/plain' }); //статускод
-      res.end('Deleted'); // підтвердження цього
+      res.writeHead(200, { 'Content-Type': 'text/plain' }); 
+      res.end('Deleted'); 
     } else {
       res.writeHead(405, { 'Content-Type': 'text/plain' });    //статус код 405 якщо метод гет пут або деліт по якійсь причині не підтримується
-      res.end('Method Not Allowed');                            //і відповідно повідомлення про це
+      res.end('Method Not Allowed');                           
     }
   } catch (err) {
     if (err.code === 'ENOENT') {
       res.writeHead(404, { 'Content-Type': 'text/plain' });   // якщо файл не знайдено, відправляємо статускод 404 not found
       res.end('Not Found');
     } else {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });   //Internal Server Error (це вже знач загальна помилка сервера, якщо не 404)
+      res.writeHead(500, { 'Content-Type': 'text/plain' });   
       res.end('Server Error');
     }
   }
